@@ -507,8 +507,8 @@
 
 <script>
 const SHEET_ID = '1KrqRVwm5y9U0_aaaE0CcPt0Cq1VfXSiDWOPugqZe394';
-const SHEET_NAME = 'Alberi_VTA';
-const API_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+const SHEET_GID = '547785828';
+const API_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
 
 let allTrees = [];
 let filteredTrees = [];
@@ -730,32 +730,49 @@ async function loadData() {
   try {
     const res = await fetch(API_URL);
     const text = await res.text();
-    const json = JSON.parse(text.substring(47).slice(0, -2));
-    const cols = json.table.cols.map(c => c.label);
-    const rows = json.table.rows || [];
+
+    // Parse CSV
+    const lines = text.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
 
     const colIdx = {};
-    cols.forEach((c, i) => colIdx[c] = i);
+    headers.forEach((h, i) => colIdx[h] = i);
 
     const get = (row, name) => {
       const i = colIdx[name];
-      if (i === undefined || !row.c[i]) return '';
-      return row.c[i].v !== null && row.c[i].v !== undefined ? row.c[i].v : (row.c[i].f || '');
+      if (i === undefined || row[i] === undefined) return '';
+      return row[i].replace(/"/g, '').trim();
     };
 
-    allTrees = rows.map(row => ({
-      id: get(row, 'ID_Albero'),
-      data: get(row, 'Data_Ispezione'),
-      specie: get(row, 'Specie'),
-      dbh: get(row, 'Dbh_cm'),
-      altezza: get(row, 'Altezza_m'),
-      contesto: get(row, 'Contesto'),
-      latlong: get(row, 'LatLong'),
-      rischio: get(row, 'Rischio_Bozza') || get(row, 'Rischio_Finale'),
-      cpc: get(row, 'CPC_Bozza') || get(row, 'CPC_Definitivo'),
-      prescrizioni: get(row, 'Prescrizioni'),
-      punteggio: get(row, 'Punteggio_Difetti ') || get(row, 'Punteggio_Difetti'),
-    })).filter(t => t.id && t.latlong);
+    const parseCSVLine = (line) => {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        if (line[i] === '"') { inQuotes = !inQuotes; }
+        else if (line[i] === ',' && !inQuotes) { result.push(current); current = ''; }
+        else { current += line[i]; }
+      }
+      result.push(current);
+      return result;
+    };
+
+    allTrees = lines.slice(1).map(line => {
+      const row = parseCSVLine(line);
+      return {
+        id: get(row, 'ID_Albero'),
+        data: get(row, 'Data_Ispezione'),
+        specie: get(row, 'Specie'),
+        dbh: get(row, 'Dbh_cm'),
+        altezza: get(row, 'Altezza_m'),
+        contesto: get(row, 'Contesto'),
+        latlong: get(row, 'LatLong'),
+        rischio: get(row, 'Rischio_Bozza') || get(row, 'Rischio_Finale'),
+        cpc: get(row, 'CPC_Bozza') || get(row, 'CPC_Definitivo'),
+        prescrizioni: get(row, 'Prescrizioni'),
+        punteggio: get(row, 'Punteggio_Difetti'),
+      };
+    }).filter(t => t.id && t.latlong);
 
     document.getElementById('totalBadge').textContent = `${allTrees.length} alberi`;
     updateStats(allTrees);
