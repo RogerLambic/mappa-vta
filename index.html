@@ -612,6 +612,29 @@ function buildPopup(tree) {
           <span class="p-value">${tree.contesto || '—'}</span>
         </div>
         <div class="popup-row">
+          <span class="p-label">Manufatti</span>
+          <span class="p-value">${tree.manufatti || '—'}</span>
+        </div>
+        <div class="popup-row">
+          <span class="p-label">Occupazione</span>
+          <span class="p-value">${tree.occupazione || '—'}</span>
+        </div>
+        ${tree.difetti_radici ? `
+        <div class="popup-row">
+          <span class="p-label">Difetti radici</span>
+          <span class="p-value">${tree.difetti_radici}</span>
+        </div>` : ''}
+        ${tree.difetti_fusto ? `
+        <div class="popup-row">
+          <span class="p-label">Difetti fusto</span>
+          <span class="p-value">${tree.difetti_fusto}</span>
+        </div>` : ''}
+        ${tree.difetti_chioma ? `
+        <div class="popup-row">
+          <span class="p-label">Difetti chioma</span>
+          <span class="p-value">${tree.difetti_chioma}</span>
+        </div>` : ''}
+        <div class="popup-row">
           <span class="p-label">CPC</span>
           <span class="p-value">${tree.cpc || '—'}</span>
         </div>
@@ -619,6 +642,11 @@ function buildPopup(tree) {
         <div class="popup-row">
           <span class="p-label">Prescrizioni</span>
           <span class="p-value">${tree.prescrizioni}</span>
+        </div>` : ''}
+        ${tree.turno ? `
+        <div class="popup-row">
+          <span class="p-label">Ricontrollo</span>
+          <span class="p-value">${tree.turno}</span>
         </div>` : ''}
         <div class="popup-risk ${rc}">
           <span class="pr-label">Rischio</span>
@@ -771,6 +799,12 @@ async function loadData() {
         cpc: get(row, 'CPC_Bozza') || get(row, 'CPC_Definitivo'),
         prescrizioni: get(row, 'Prescrizioni'),
         punteggio: get(row, 'Punteggio_Difetti'),
+        turno: get(row, 'Turno_Ricontrollo'),
+        manufatti: get(row, 'Presenza_manufatti'),
+        occupazione: get(row, 'Occupazione'),
+        difetti_radici: get(row, 'Difetti_Radici'),
+        difetti_fusto: get(row, 'Difetti_Fusto'),
+        difetti_chioma: get(row, 'Difetti_Chioma'),
       };
     }).filter(t => t.id && t.latlong);
 
