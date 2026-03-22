@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Censimento VTA Pini — Campi Salentina</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --verde: #2d6a4f;
+    --verde-light: #52b788;
+    --giallo: #e9c46a;
+    --arancione: #f4a261;
+    --rosso: #e63946;
+    --bg: #f8f5f0;
+    --text: #1a1a2e;
+    --text-light: #555566;
+    --card-bg: #ffffff;
+    --border: #e0d9d0;
+    --shadow: 0 4px 24px rgba(0,0,0,0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--text);
+    color: white;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+
+  .header-left h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.4rem;
+    letter-spacing: -0.02em;
+  }
+
+  .header-left p {
+    font-size: 0.75rem;
+    color: #aaa;
+    font-family: 'DM Mono', monospace;
+    margin-top: 2px;
+  }
+
+  .header-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .badge-total { background: #333; color: #ccc; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    height: calc(100vh - 64px);
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--card-bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-header h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.1rem;
+    color: var(--text);
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: white;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+  }
+
+  .filter-btn:hover { border-color: var(--text); }
+  .filter-btn.active { background: var(--text); color: white; border-color: var(--text); }
+  .filter-btn.f-estremo.active { background: var(--rosso); border-color: var(--rosso); }
+  .filter-btn.f-elevato.active { background: var(--arancione); border-color: var(--arancione); color: white; }
+  .filter-btn.f-moderato.active { background: var(--giallo); border-color: var(--giallo); color: #333; }
+  .filter-btn.f-basso.active { background: var(--verde); border-color: var(--verde); }
+
+  .search-box {
+    margin-top: 10px;
+    position: relative;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding: 8px 12px 8px 32px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+    background: var(--bg);
+  }
+
+  .search-box input:focus { border-color: var(--text); }
+
+  .search-box::before {
+    content: '🔍';
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+  }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat-box {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+  }
+
+  .stat-box .num {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.3rem;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  .stat-box .lbl {
+    font-size: 0.6rem;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 2px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .stat-box.s-estremo .num { color: var(--rosso); }
+  .stat-box.s-elevato .num { color: var(--arancione); }
+  .stat-box.s-moderato .num { color: #c49a00; }
+  .stat-box.s-basso .num { color: var(--verde); }
+
+  .tree-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 8px 12px;
+  }
+
+  .tree-list::-webkit-scrollbar { width: 4px; }
+  .tree-list::-webkit-scrollbar-track { background: transparent; }
+  .tree-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .tree-card {
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .tree-card:hover {
+    border-color: var(--text);
+    box-shadow: var(--shadow);
+    transform: translateY(-1px);
+  }
+
+  .tree-card.selected {
+    border-color: var(--text);
+    background: #f8f8f8;
+  }
+
+  .risk-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+
+  .risk-dot.ESTREMO { background: var(--rosso); box-shadow: 0 0 6px rgba(230,57,70,0.5); }
+  .risk-dot.ELEVATO { background: var(--arancione); box-shadow: 0 0 6px rgba(244,162,97,0.5); }
+  .risk-dot.MODERATO { background: var(--giallo); box-shadow: 0 0 6px rgba(233,196,106,0.5); }
+  .risk-dot.BASSO { background: var(--verde-light); }
+
+  .tree-info { flex: 1; min-width: 0; }
+
+  .tree-id {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--text-light);
+    letter-spacing: 0.05em;
+  }
+
+  .tree-species {
+    font-size: 0.85rem;
+    font-weight: 500;
+    font-style: italic;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tree-meta {
+    font-size: 0.72rem;
+    color: var(--text-light);
+    margin-top: 2px;
+  }
+
+  .risk-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 500;
+    flex-shrink: 0;
+    letter-spacing: 0.03em;
+  }
+
+  .risk-badge.ESTREMO { background: #fce4e6; color: var(--rosso); }
+  .risk-badge.ELEVATO { background: #fdebd8; color: #c47020; }
+  .risk-badge.MODERATO { background: #fdf6de; color: #8a6800; }
+  .risk-badge.BASSO { background: #e8f5ef; color: var(--verde); }
+
+  /* MAP */
+  #map {
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+  }
+
+  /* POPUP */
+  .custom-popup .leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    min-width: 280px;
+  }
+
+  .custom-popup .leaflet-popup-content {
+    margin: 0;
+    width: 100% !important;
+  }
+
+  .popup-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .popup-header .p-species {
+    font-style: italic;
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text);
+  }
+
+  .popup-header .p-id {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: #999;
+    margin-top: 2px;
+  }
+
+  .popup-body {
+    padding: 10px 16px 14px;
+  }
+
+  .popup-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 0.78rem;
+    border-bottom: 1px solid #f5f5f5;
+  }
+
+  .popup-row:last-child { border-bottom: none; }
+
+  .popup-row .p-label {
+    color: #888;
+    font-size: 0.7rem;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .popup-row .p-value {
+    font-weight: 500;
+    color: var(--text);
+    text-align: right;
+    max-width: 160px;
+    font-size: 0.75rem;
+  }
+
+  .popup-risk {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .popup-risk.ESTREMO { background: #fce4e6; }
+  .popup-risk.ELEVATO { background: #fdebd8; }
+  .popup-risk.MODERATO { background: #fdf6de; }
+  .popup-risk.BASSO { background: #e8f5ef; }
+
+  .popup-risk .pr-label {
+    font-size: 0.65rem;
+    font-family: 'DM Mono', monospace;
+    color: #888;
+    text-transform: uppercase;
+  }
+
+  .popup-risk .pr-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  .popup-risk.ESTREMO .pr-value { color: var(--rosso); }
+  .popup-risk.ELEVATO .pr-value { color: #c47020; }
+  .popup-risk.MODERATO .pr-value { color: #8a6800; }
+  .popup-risk.BASSO .pr-value { color: var(--verde); }
+
+  .no-results {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-light);
+    font-size: 0.85rem;
+  }
+
+  .loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-light);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+  }
+
+  /* Legend */
+  .map-legend {
+    position: absolute;
+    bottom: 24px;
+    right: 12px;
+    z-index: 1000;
+    background: white;
+    border-radius: 10px;
+    padding: 12px 16px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+
+  .map-legend h4 {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-light);
+    margin-bottom: 8px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+    font-size: 0.75rem;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 768px) {
+    .layout { grid-template-columns: 1fr; grid-template-rows: 50vh 1fr; }
+    header { padding: 12px 16px; }
+    .header-left h1 { font-size: 1.1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Censimento VTA — Pini Urbani</h1>
+    <p>Comune di Campi Salentina · Dott. Agr. Ruggero Manca</p>
+  </div>
+  <div class="header-right">
+    <span class="badge badge-total" id="totalBadge">— alberi</span>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2>Elenco Esemplari</h2>
+      <div class="filter-row">
+        <button class="filter-btn active" data-filter="TUTTI">Tutti</button>
+        <button class="filter-btn f-estremo" data-filter="ESTREMO">🔴 Estremo</button>
+        <button class="filter-btn f-elevato" data-filter="ELEVATO">🟠 Elevato</button>
+        <button class="filter-btn f-moderato" data-filter="MODERATO">🟡 Moderato</button>
+        <button class="filter-btn f-basso" data-filter="BASSO">🟢 Basso</button>
+      </div>
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Cerca per specie, contesto...">
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-box s-estremo">
+        <div class="num" id="countEstremo">0</div>
+        <div class="lbl">Estremo</div>
+      </div>
+      <div class="stat-box s-elevato">
+        <div class="num" id="countElevato">0</div>
+        <div class="lbl">Elevato</div>
+      </div>
+      <div class="stat-box s-moderato">
+        <div class="num" id="countModerato">0</div>
+        <div class="lbl">Moderato</div>
+      </div>
+      <div class="stat-box s-basso">
+        <div class="num" id="countBasso">0</div>
+        <div class="lbl">Basso</div>
+      </div>
+    </div>
+
+    <div class="tree-list" id="treeList">
+      <div class="loading">Caricamento dati...</div>
+    </div>
+  </div>
+
+  <div style="position:relative;">
+    <div id="map"></div>
+    <div class="map-legend">
+      <h4>Classe di Rischio</h4>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--rosso)"></div>Estremo</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--arancione)"></div>Elevato</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--giallo)"></div>Moderato</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--verde-light)"></div>Basso</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = '1KrqRVwm5y9U0_aaaE0CcPt0Cq1VfXSiDWOPugqZe394';
+const SHEET_NAME = 'Alberi_VTA';
+const API_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+
+let allTrees = [];
+let filteredTrees = [];
+let currentFilter = 'TUTTI';
+let markers = {};
+let selectedId = null;
+
+// Init map
+const map = L.map('map', { zoomControl: true }).setView([40.4010, 18.0130], 16);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap © CARTO',
+  subdomains: 'abcd',
+  maxZoom: 20
+}).addTo(map);
+
+function getRiskColor(risk) {
+  const r = (risk || '').toUpperCase().trim();
+  if (r === 'ESTREMO') return '#e63946';
+  if (r === 'ELEVATO') return '#f4a261';
+  if (r.includes('MODERATO') || r === 'MEDIO') return '#e9c46a';
+  return '#52b788';
+}
+
+function getRiskClass(risk) {
+  const r = (risk || '').toUpperCase().trim();
+  if (r === 'ESTREMO') return 'ESTREMO';
+  if (r === 'ELEVATO') return 'ELEVATO';
+  if (r.includes('MODERATO') || r === 'MEDIO') return 'MODERATO';
+  return 'BASSO';
+}
+
+function createMarkerIcon(risk) {
+  const color = getRiskColor(risk);
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width: 16px; height: 16px;
+      background: ${color};
+      border: 2.5px solid white;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      cursor: pointer;
+    "></div>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+    popupAnchor: [0, -10]
+  });
+}
+
+function createLargeMarkerIcon(risk) {
+  const color = getRiskColor(risk);
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width: 22px; height: 22px;
+      background: ${color};
+      border: 3px solid white;
+      border-radius: 50%;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+      cursor: pointer;
+    "></div>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+    popupAnchor: [0, -13]
+  });
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('it-IT');
+  } catch { return dateStr; }
+}
+
+function buildPopup(tree) {
+  const rc = getRiskClass(tree.rischio);
+  const rischio = tree.rischio ? tree.rischio.toUpperCase() : 'N/D';
+  return `
+    <div>
+      <div class="popup-header">
+        <div class="p-species">${tree.specie || 'Specie n.d.'}</div>
+        <div class="p-id">#${(tree.id || '').substring(0,8).toUpperCase()}</div>
+      </div>
+      <div class="popup-body">
+        <div class="popup-row">
+          <span class="p-label">Data ispezione</span>
+          <span class="p-value">${formatDate(tree.data)}</span>
+        </div>
+        <div class="popup-row">
+          <span class="p-label">DBH</span>
+          <span class="p-value">${tree.dbh ? tree.dbh + ' cm' : '—'}</span>
+        </div>
+        <div class="popup-row">
+          <span class="p-label">Altezza</span>
+          <span class="p-value">${tree.altezza ? tree.altezza + ' m' : '—'}</span>
+        </div>
+        <div class="popup-row">
+          <span class="p-label">Contesto</span>
+          <span class="p-value">${tree.contesto || '—'}</span>
+        </div>
+        <div class="popup-row">
+          <span class="p-label">CPC</span>
+          <span class="p-value">${tree.cpc || '—'}</span>
+        </div>
+        ${tree.prescrizioni ? `
+        <div class="popup-row">
+          <span class="p-label">Prescrizioni</span>
+          <span class="p-value">${tree.prescrizioni}</span>
+        </div>` : ''}
+        <div class="popup-risk ${rc}">
+          <span class="pr-label">Rischio</span>
+          <span class="pr-value">${rischio}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function parseLatLng(latlong) {
+  if (!latlong) return null;
+  const parts = latlong.toString().split(',');
+  if (parts.length !== 2) return null;
+  const lat = parseFloat(parts[0].trim());
+  const lng = parseFloat(parts[1].trim());
+  if (isNaN(lat) || isNaN(lng)) return null;
+  return [lat, lng];
+}
+
+function renderList(trees) {
+  const list = document.getElementById('treeList');
+  if (!trees.length) {
+    list.innerHTML = '<div class="no-results">Nessun esemplare trovato</div>';
+    return;
+  }
+
+  list.innerHTML = trees.map(t => {
+    const rc = getRiskClass(t.rischio);
+    return `
+      <div class="tree-card ${t.id === selectedId ? 'selected' : ''}" data-id="${t.id}">
+        <div class="risk-dot ${rc}"></div>
+        <div class="tree-info">
+          <div class="tree-id">#${(t.id || '').substring(0,8).toUpperCase()}</div>
+          <div class="tree-species">${t.specie || 'Specie n.d.'}</div>
+          <div class="tree-meta">${t.contesto || '—'} · DBH ${t.dbh || '—'} cm</div>
+        </div>
+        <span class="risk-badge ${rc}">${rc}</span>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('.tree-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const id = card.dataset.id;
+      selectTree(id);
+    });
+  });
+}
+
+function selectTree(id) {
+  selectedId = id;
+  const tree = allTrees.find(t => t.id === id);
+  if (!tree) return;
+
+  // Update list
+  document.querySelectorAll('.tree-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.id === id);
+  });
+
+  // Update markers
+  Object.entries(markers).forEach(([mid, {marker, tree: mt}]) => {
+    marker.setIcon(mid === id ? createLargeMarkerIcon(mt.rischio) : createMarkerIcon(mt.rischio));
+  });
+
+  // Open popup and fly to
+  if (markers[id]) {
+    const {marker, tree: mt} = markers[id];
+    const ll = parseLatLng(mt.latlong);
+    if (ll) {
+      map.flyTo(ll, 18, { duration: 0.8 });
+      setTimeout(() => marker.openPopup(), 900);
+    }
+  }
+}
+
+function updateStats(trees) {
+  document.getElementById('countEstremo').textContent = trees.filter(t => getRiskClass(t.rischio) === 'ESTREMO').length;
+  document.getElementById('countElevato').textContent = trees.filter(t => getRiskClass(t.rischio) === 'ELEVATO').length;
+  document.getElementById('countModerato').textContent = trees.filter(t => getRiskClass(t.rischio) === 'MODERATO').length;
+  document.getElementById('countBasso').textContent = trees.filter(t => getRiskClass(t.rischio) === 'BASSO').length;
+}
+
+function applyFilters() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  filteredTrees = allTrees.filter(t => {
+    const matchFilter = currentFilter === 'TUTTI' || getRiskClass(t.rischio) === currentFilter;
+    const matchSearch = !search ||
+      (t.specie || '').toLowerCase().includes(search) ||
+      (t.contesto || '').toLowerCase().includes(search) ||
+      (t.id || '').toLowerCase().includes(search);
+    return matchFilter && matchSearch;
+  });
+
+  // Update markers visibility
+  Object.entries(markers).forEach(([id, {marker, tree}]) => {
+    const visible = filteredTrees.some(t => t.id === id);
+    if (visible) {
+      if (!map.hasLayer(marker)) marker.addTo(map);
+    } else {
+      if (map.hasLayer(marker)) map.removeLayer(marker);
+    }
+  });
+
+  renderList(filteredTrees);
+}
+
+async function loadData() {
+  try {
+    const res = await fetch(API_URL);
+    const text = await res.text();
+    const json = JSON.parse(text.substring(47).slice(0, -2));
+    const cols = json.table.cols.map(c => c.label);
+    const rows = json.table.rows || [];
+
+    const colIdx = {};
+    cols.forEach((c, i) => colIdx[c] = i);
+
+    const get = (row, name) => {
+      const i = colIdx[name];
+      if (i === undefined || !row.c[i]) return '';
+      return row.c[i].v !== null && row.c[i].v !== undefined ? row.c[i].v : (row.c[i].f || '');
+    };
+
+    allTrees = rows.map(row => ({
+      id: get(row, 'ID_Albero'),
+      data: get(row, 'Data_Ispezione'),
+      specie: get(row, 'Specie'),
+      dbh: get(row, 'Dbh_cm'),
+      altezza: get(row, 'Altezza_m'),
+      contesto: get(row, 'Contesto'),
+      latlong: get(row, 'LatLong'),
+      rischio: get(row, 'Rischio_Bozza') || get(row, 'Rischio_Finale'),
+      cpc: get(row, 'CPC_Bozza') || get(row, 'CPC_Definitivo'),
+      prescrizioni: get(row, 'Prescrizioni'),
+      punteggio: get(row, 'Punteggio_Difetti ') || get(row, 'Punteggio_Difetti'),
+    })).filter(t => t.id && t.latlong);
+
+    document.getElementById('totalBadge').textContent = `${allTrees.length} alberi`;
+    updateStats(allTrees);
+
+    // Add markers
+    const bounds = [];
+    allTrees.forEach(tree => {
+      const ll = parseLatLng(tree.latlong);
+      if (!ll) return;
+      bounds.push(ll);
+
+      const marker = L.marker(ll, { icon: createMarkerIcon(tree.rischio) });
+      marker.bindPopup(buildPopup(tree), {
+        className: 'custom-popup',
+        maxWidth: 300
+      });
+      marker.addTo(map);
+      marker.on('click', () => {
+        selectedId = tree.id;
+        document.querySelectorAll('.tree-card').forEach(c => {
+          c.classList.toggle('selected', c.dataset.id === tree.id);
+        });
+        // Scroll card into view
+        const card = document.querySelector(`.tree-card[data-id="${tree.id}"]`);
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        Object.entries(markers).forEach(([mid, {marker: m, tree: mt}]) => {
+          m.setIcon(mid === tree.id ? createLargeMarkerIcon(mt.rischio) : createMarkerIcon(mt.rischio));
+        });
+      });
+
+      markers[tree.id] = { marker, tree };
+    });
+
+    if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
+
+    filteredTrees = [...allTrees];
+    renderList(filteredTrees);
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById('treeList').innerHTML = '<div class="no-results">Errore nel caricamento dati.<br>Verifica che il foglio sia pubblico.</div>';
+  }
+}
+
+// Filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    applyFilters();
+  });
+});
+
+// Search
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+// Load
+loadData();
+</script>
+</body>
+</html>
