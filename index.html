@@ -579,8 +579,9 @@ function getRiskColor(risk) {
 function getRiskClass(risk) {
   const r = (risk || '').toUpperCase().trim();
   if (r === 'ESTREMO') return 'ESTREMO';
-  if (r === 'ELEVATO') return 'ELEVATO';
-  if (r.includes('MODERATO') || r === 'MEDIO') return 'MODERATO';
+  if (r === 'ELEVATO' || r === 'ALTO') return 'ELEVATO';
+  if (r.includes('MODERATO') || r === 'MEDIO' || r === 'MODERATO') return 'MODERATO';
+  if (r === 'BASSO') return 'BASSO';
   return 'BASSO';
 }
 
