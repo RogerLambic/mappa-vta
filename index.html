@@ -979,9 +979,12 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 // Search
 document.getElementById('searchInput').addEventListener('input', applyFilters);
 
-// Load
-loadFoto();
-loadData();
+// Load — aspetta che le foto siano caricate prima di costruire i marker
+async function init() {
+  await loadFoto();
+  await loadData();
+}
+init();
 </script>
 </body>
 </html>
