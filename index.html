@@ -458,23 +458,26 @@
     display: flex;
     gap: 6px;
     margin-top: 10px;
-    overflow-x: auto;
-    padding-bottom: 4px;
+    flex-wrap: wrap;
   }
 
-  .popup-foto img {
-    width: 80px;
-    height: 80px;
-    object-fit: cover;
+  .foto-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    background: #f0f0f0;
     border-radius: 6px;
-    flex-shrink: 0;
-    cursor: pointer;
-    border: 2px solid transparent;
-    transition: border-color 0.2s;
+    font-family: DM Mono, monospace;
+    font-size: 0.7rem;
+    color: var(--text);
+    text-decoration: none;
+    border: 1px solid var(--border);
+    transition: background 0.2s;
   }
 
-  .popup-foto img:hover {
-    border-color: var(--text);
+  .foto-link:hover {
+    background: #e0e0e0;
   }
 
   @media (max-width: 768px) {
@@ -740,7 +743,7 @@ function buildPopup(tree) {
         </div>
         ${fotos.length ? `
         <div class="popup-foto">
-          ${fotos.map(id => `<img src="https://drive.google.com/uc?export=view&id=${id}" onclick="window.open('https://drive.google.com/uc?export=view&id=${id}','_blank')" />`).join('')}
+          ${fotos.map((id, i) => `<a class="foto-link" href="https://drive.google.com/uc?export=view&id=${id}" target="_blank">📷 Foto ${i+1}</a>`).join('')}
         </div>` : ''}
       </div>
     </div>
