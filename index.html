@@ -454,6 +454,29 @@
     flex-shrink: 0;
   }
 
+  .popup-foto {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .popup-foto img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+  }
+
+  .popup-foto img:hover {
+    border-color: var(--text);
+  }
+
   @media (max-width: 768px) {
     .layout { grid-template-columns: 1fr; grid-template-rows: 50vh 1fr; }
     header { padding: 12px 16px; }
@@ -530,8 +553,11 @@
 const SHEET_ID = '1KrqRVwm5y9U0_aaaE0CcPt0Cq1VfXSiDWOPugqZe394';
 const SHEET_GID = '547785828';
 const API_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
+const FOTO_SHEET_ID = '16OkiOUYpIwjrfs8WdVx3DURAoEvsM7ur9_3XH56gUXE';
+const FOTO_API_URL = `https://docs.google.com/spreadsheets/d/${FOTO_SHEET_ID}/export?format=csv`;
 
 let allTrees = [];
+let fotoMap = {}; // ID_Albero -> [array of Drive IDs]
 let filteredTrees = [];
 let currentFilter = 'TUTTI';
 let markers = {};
@@ -645,6 +671,7 @@ function formatDate(dateStr) {
 }
 
 function buildPopup(tree) {
+  const fotos = fotoMap[tree.id] || [];
   const rc = getRiskClass(tree.rischio);
   const rischio = tree.rischio ? tree.rischio.toUpperCase() : 'N/D';
   return `
@@ -711,6 +738,10 @@ function buildPopup(tree) {
           <span class="pr-label">Rischio</span>
           <span class="pr-value">${rischio}</span>
         </div>
+        ${fotos.length ? `
+        <div class="popup-foto">
+          ${fotos.map(id => `<img src="https://drive.google.com/uc?export=view&id=${id}" onclick="window.open('https://drive.google.com/uc?export=view&id=${id}','_blank')" />`).join('')}
+        </div>` : ''}
       </div>
     </div>
   `;
@@ -811,6 +842,28 @@ function applyFilters() {
   });
 
   renderList(filteredTrees);
+}
+
+async function loadFoto() {
+  try {
+    const res = await fetch(FOTO_API_URL);
+    const text = await res.text();
+    const lines = text.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+    const idAlberoIdx = headers.indexOf('ID_Albero');
+    const idDriveIdx = headers.indexOf('ID_Drive');
+    if (idDriveIdx === -1) return;
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i].split(',').map(c => c.replace(/"/g, '').trim());
+      const idAlbero = row[idAlberoIdx];
+      const idDrive = row[idDriveIdx];
+      if (!idAlbero || !idDrive) continue;
+      if (!fotoMap[idAlbero]) fotoMap[idAlbero] = [];
+      fotoMap[idAlbero].push(idDrive);
+    }
+  } catch(e) {
+    console.log('Foto non caricate:', e);
+  }
 }
 
 async function loadData() {
@@ -924,6 +977,7 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 document.getElementById('searchInput').addEventListener('input', applyFilters);
 
 // Load
+loadFoto();
 loadData();
 </script>
 </body>
