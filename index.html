@@ -481,9 +481,89 @@
   }
 
   @media (max-width: 768px) {
-    .layout { grid-template-columns: 1fr; grid-template-rows: 50vh 1fr; }
-    header { padding: 12px 16px; }
-    .header-left h1 { font-size: 1.1rem; }
+    header { padding: 10px 16px; }
+    .header-left h1 { font-size: 1rem; }
+    .header-left p { display: none; }
+
+    .layout {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr;
+      position: relative;
+    }
+
+    /* Mappa a schermo intero su mobile */
+    .layout > div:last-child {
+      position: fixed;
+      top: 56px;
+      left: 0;
+      right: 0;
+      bottom: 56px;
+      z-index: 1;
+    }
+
+    #map { height: 100%; }
+
+    /* Sidebar nascosta di default su mobile */
+    .sidebar {
+      position: fixed;
+      bottom: 56px;
+      left: 0;
+      right: 0;
+      height: 60vh;
+      z-index: 100;
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar.open {
+      transform: translateY(0);
+    }
+
+    /* Tab bar in basso */
+    .mobile-tabs {
+      display: flex;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      background: var(--text);
+      z-index: 200;
+    }
+
+    .mobile-tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #aaa;
+      font-family: DM Mono, monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      gap: 3px;
+      border: none;
+      background: none;
+      transition: color 0.2s;
+    }
+
+    .mobile-tab.active { color: white; }
+    .mobile-tab span { font-size: 1.1rem; }
+
+    .map-legend {
+      bottom: 70px;
+    }
+
+    .layer-toggle {
+      top: 70px;
+    }
+  }
+
+  @media (min-width: 769px) {
+    .mobile-tabs { display: none; }
   }
 </style>
 </head>
@@ -550,6 +630,16 @@
       <div class="legend-item"><div class="legend-dot" style="background:var(--verde-light)"></div>Basso</div>
     </div>
   </div>
+</div>
+
+<!-- Mobile tab bar -->
+<div class="mobile-tabs" id="mobileTabs">
+  <button class="mobile-tab" id="tabMappa" onclick="showTab('mappa')">
+    <span>🗺</span>MAPPA
+  </button>
+  <button class="mobile-tab active" id="tabLista" onclick="showTab('lista')">
+    <span>📋</span>LISTA
+  </button>
 </div>
 
 <script>
@@ -978,6 +1068,29 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 
 // Search
 document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+// Mobile tab switching
+function showTab(tab) {
+  const sidebar = document.querySelector('.sidebar');
+  const tabMappa = document.getElementById('tabMappa');
+  const tabLista = document.getElementById('tabLista');
+  if (tab === 'lista') {
+    sidebar.classList.add('open');
+    tabLista.classList.add('active');
+    tabMappa.classList.remove('active');
+  } else {
+    sidebar.classList.remove('open');
+    tabMappa.classList.add('active');
+    tabLista.classList.remove('active');
+  }
+}
+
+// On mobile, start with map view
+if (window.innerWidth <= 768) {
+  document.addEventListener('DOMContentLoaded', () => {
+    showTab('mappa');
+  });
+}
 
 // Load — aspetta che le foto siano caricate prima di costruire i marker
 async function init() {
